@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ListenTG - 消息搜索</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css"
+    />
+    <style>
+      body {
+        padding: 2rem;
+      }
+      nav a {
+        margin-right: 1rem;
+      }
+      #results-container article {
+        margin-top: 1rem;
+      }
+      .result-meta {
+        color: #888;
+        font-size: 0.9rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="container">
+      <header>
+        <h1>ListenTG 消息搜索</h1>
+        <nav>
+          <a href="/">数据看板</a>
+          <a href="/search"><b>消息搜索</b></a>
+        </nav>
+      </header>
+
+      <section>
+        <input
+          type="search"
+          id="search-input"
+          name="search"
+          placeholder="输入关键词搜索消息内容..."
+        />
+      </section>
+
+      <section id="results-container">
+        <!-- 搜索结果将在这里动态插入 -->
+      </section>
+    </main>
+    <script src="/static/main.js"></script>
+  </body>
+</html>

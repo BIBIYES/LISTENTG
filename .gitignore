@@ -2,3 +2,6 @@ config.ini
 session_name.session
 session_name.session-journal
 __pycache__
+listentg_messages.db
+autotg_session.session-journal
+autotg_session.session

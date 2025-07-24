@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ListenTG - 数据看板</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css"
+    />
+    <style>
+      body {
+        padding: 2rem;
+      }
+      .grid {
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      }
+      .card {
+        text-align: center;
+        padding: 2rem;
+      }
+      .card h2 {
+        font-size: 3rem;
+        margin: 0;
+      }
+      .card p {
+        margin: 0;
+      }
+      nav a {
+        margin-right: 1rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="container">
+      <header>
+        <h1>ListenTG 数据看板</h1>
+        <nav>
+          <a href="/"><b>数据看板</b></a>
+          <a href="/search">消息搜索</a>
+        </nav>
+      </header>
+
+      <section id="stats-cards" class="grid">
+        <article class="card">
+          <h2 id="today-count">...</h2>
+          <p>今日消息总数</p>
+        </article>
+        <article class="card">
+          <h2 id="top-talker">...</h2>
+          <p>近7日最活跃用户</p>
+        </article>
+      </section>
+
+      <section id="charts">
+        <article>
+          <h3>近7日群聊消息数 Top 10</h3>
+          <canvas id="group-chart"></canvas>
+        </article>
+        <article>
+          <h3>近7日消息总量趋势</h3>
+          <canvas id="daily-chart"></canvas>
+        </article>
+      </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/static/main.js"></script>
+  </body>
+</html>
