@@ -21,11 +21,10 @@ async def format_message(event):
     # 昵称
     nickname = 'Unknown'
     if sender:
-        if getattr(sender, 'username', None):
-            username = f"@{sender.username}"
-            first = getattr(sender, 'first_name', '') or ''
-            last = getattr(sender, 'last_name', '') or ''
-            nickname = (first + ' ' + last).strip() or 'Unknown'
+        username = f"@{sender.username}"
+        first = getattr(sender, 'first_name', '') or ''
+        last = getattr(sender, 'last_name', '') or ''
+        nickname = (first + ' ' + last).strip() or 'Unknown'
 
     sender_id = getattr(sender, 'id', 'Unknown ID')
 
