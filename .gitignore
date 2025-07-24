@@ -1,1 +1,4 @@
 config.ini
+session_name.session
+session_name.session-journal
+__pycache__
