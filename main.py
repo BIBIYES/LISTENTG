@@ -4,6 +4,8 @@ ListenTG - Telegram 消息监听和转发工具
 
 import asyncio
 import logging
+import multiprocessing
+import uvicorn
 
 from tg_client import client_manager
 from utils.logger import setup_logging
@@ -16,6 +18,12 @@ from handlers.forwarder import forwarder_task
 # 在所有其他模块之前优先配置日志
 setup_logging()
 logger = logging.getLogger(__name__)
+
+def run_web_server():
+    """ 在一个单独的进程中运行 FastAPI Web 服务器 """
+    from web.main import app  # 延迟导入以避免循环依赖问题
+    logger.info("正在启动 Web 服务器...")
+    uvicorn.run(app, host="0.0.0.0", port=8000)
 
 async def main():
     """
@@ -30,6 +38,10 @@ async def main():
     try:
         # 初始化数据库（连接并创建表）
         await db_manager.init_db()
+
+        # 在一个独立的进程中启动 Web 服务器
+        web_process = multiprocessing.Process(target=run_web_server)
+        web_process.start()
 
         # 启动客户端（包含登录和设置在线状态）
         await client_manager.start()
@@ -47,8 +59,17 @@ async def main():
         logger.critical(f"应用主程序遇到无法恢复的错误，即将退出: {e}", exc_info=True)
     finally:
         logger.info("应用程序正在关闭...")
+        
+        # 确保 Web 服务器进程被终止
+        if 'web_process' in locals() and web_process.is_alive():
+            web_process.terminate()
+            web_process.join()
+            logger.info("Web 服务器已关闭。")
+
         await db_manager.close()
         logger.info("数据库连接已关闭。")
 
 if __name__ == "__main__":
+    # 确保多进程在 Windows 和其他平台上安全启动
+    multiprocessing.freeze_support()
     asyncio.run(main())
