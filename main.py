@@ -4,10 +4,10 @@ ListenTG - Telegram 消息监听和转发工具
 
 import asyncio
 import logging
-import uvicorn
+
 from tg_client import client_manager
 from utils.logger import setup_logging
-from web.api import app as web_app
+from handlers.database import db_manager
 
 # 导入事件处理器模块，确保 @client.on 装饰器被执行和注册
 from handlers import message_handler
@@ -17,42 +17,38 @@ from handlers.forwarder import forwarder_task
 setup_logging()
 logger = logging.getLogger(__name__)
 
-async def run_client():
-    """启动 Telethon 客户端，并启动转发器任务。"""
-    await client_manager.start()
-    logger.info("Telethon 客户端已启动。")
-
-    # 客户端启动后，在它的事件循环上创建转发任务
-    client_manager.get_client().loop.create_task(forwarder_task())
-
-    # 保持客户端运行
-    await client_manager.run_until_disconnected()
-
 async def main():
     """
     应用程序主入口。
     
-    并行运行 Telethon 客户端和 FastAPI Web 服务器。
+    - 初始化数据库。
+    - 初始化并启动客户端。
+    - 在事件循环中创建并运行转发器任务。
+    - 保持客户端持续运行。
+    - 最后关闭数据库连接。
     """
-    # 配置 Uvicorn 服务器
-    config = uvicorn.Config(web_app, host="0.0.0.0", port=8000, log_level="info")
-    server = uvicorn.Server(config)
-
     try:
-        logger.info("正在启动 Web 服务器和 Telethon 客户端...")
-    
-        # 并行运行服务器和客户端
-        await asyncio.gather(
-            server.serve(),
-            run_client()
-        )
+        # 初始化数据库（连接并创建表）
+        await db_manager.init_db()
 
-    except (KeyboardInterrupt, SystemExit):
-        logger.info("收到关闭信号...")
+        # 启动客户端（包含登录和设置在线状态）
+        await client_manager.start()
+
+        # 获取客户端的事件循环，并创建转发任务
+        loop = client_manager.get_client().loop
+        loop.create_task(forwarder_task())
+        
+        logger.info("系统已准备就绪，开始监听消息...")
+        
+        # 运行客户端直到断开连接
+        await client_manager.run_until_disconnected()
+
     except Exception as e:
-        logger.critical(f"应用主程序遇到无法恢复的错误: {e}", exc_info=True)
+        logger.critical(f"应用主程序遇到无法恢复的错误，即将退出: {e}", exc_info=True)
     finally:
         logger.info("应用程序正在关闭...")
+        await db_manager.close()
+        logger.info("数据库连接已关闭。")
 
 if __name__ == "__main__":
     asyncio.run(main())

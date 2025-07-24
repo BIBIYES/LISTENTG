@@ -2,39 +2,11 @@ import aiosqlite
 import logging
 from telethon import events
 from telethon.tl.types import User, Chat, Channel
-from typing import Optional, List
-from datetime import datetime, timedelta
-from pydantic import BaseModel
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 DB_PATH = 'listentg_messages.db'
-
-# Pydantic 模型，用于定义API返回的数据结构
-class DailyStat(BaseModel):
-    date: str
-    count: int
-
-class GroupStat(BaseModel):
-    chat_title: str
-    count: int
-
-class TopTalker(BaseModel):
-    sender_name: str
-    count: int
-
-class DashboardStats(BaseModel):
-    today_message_count: int
-    seven_day_group_stats: List[GroupStat]
-    seven_day_total_stats: List[DailyStat]
-    seven_day_top_talker: Optional[TopTalker]
-
-class MessageResult(BaseModel):
-    chat_title: str
-    sender_name: str
-    text: str
-    date: datetime
-
 
 class DatabaseManager:
     """
@@ -85,85 +57,6 @@ class DatabaseManager:
         await self._connection.execute(create_table_sql)
         await self._connection.commit()
         logger.info("数据库表 'messages' 已初始化。")
-
-    async def get_stats_for_dashboard(self) -> DashboardStats:
-        """获取仪表板所需的所有统计数据。"""
-        if not self._connection:
-            raise ConnectionError("数据库未连接。")
-
-        async with self._connection.execute("PRAGMA foreign_keys = ON") as cursor: # 只是为了确保连接活跃
-            pass
-
-        # 1. 今日所有消息数量
-        today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-        async with self._connection.execute(
-            "SELECT COUNT(*) FROM messages WHERE date >= ?", (today_start,)
-        ) as cursor:
-            today_count = (await cursor.fetchone())[0]
-
-        # 2. 7日群聊消息排行榜
-        seven_days_ago = datetime.now() - timedelta(days=7)
-        group_stats_query = """
-            SELECT chat_title, COUNT(*) as msg_count
-            FROM messages
-            WHERE date >= ? AND chat_type IN ('Group', 'Channel')
-            GROUP BY chat_title
-            ORDER BY msg_count DESC
-            LIMIT 10;
-        """
-        async with self._connection.execute(group_stats_query, (seven_days_ago,)) as cursor:
-            group_stats_rows = await cursor.fetchall()
-            group_stats = [GroupStat(chat_title=row[0], count=row[1]) for row in group_stats_rows]
-
-        # 3. 7日所有消息数量折线图
-        total_stats_query = """
-            SELECT DATE(date) as day, COUNT(*) as msg_count
-            FROM messages
-            WHERE date >= ?
-            GROUP BY day
-            ORDER BY day;
-        """
-        async with self._connection.execute(total_stats_query, (seven_days_ago,)) as cursor:
-            total_stats_rows = await cursor.fetchall()
-            total_stats = [DailyStat(date=row[0], count=row[1]) for row in total_stats_rows]
-
-        # 4. 7日发言量最高的人
-        top_talker_query = """
-            SELECT sender_name, COUNT(*) as msg_count
-            FROM messages
-            WHERE date >= ? AND sender_name IS NOT 'Unknown'
-            GROUP BY sender_name
-            ORDER BY msg_count DESC
-            LIMIT 1;
-        """
-        top_talker = None
-        async with self._connection.execute(top_talker_query, (seven_days_ago,)) as cursor:
-            top_talker_row = await cursor.fetchone()
-            if top_talker_row:
-                top_talker = TopTalker(sender_name=top_talker_row[0], count=top_talker_row[1])
-
-        return DashboardStats(
-            today_message_count=today_count,
-            seven_day_group_stats=group_stats,
-            seven_day_total_stats=total_stats,
-            seven_day_top_talker=top_talker,
-        )
-
-    async def search_messages(self, query: str) -> List[MessageResult]:
-        """根据内容搜索消息。"""
-        if not self._connection:
-            raise ConnectionError("数据库未连接。")
-        
-        search_query = """
-            SELECT chat_title, sender_name, text, date
-            FROM messages
-            WHERE text LIKE ?
-            ORDER BY date DESC
-            LIMIT 50;
-        """
-        async with self._connection.execute(search_query, (f'%{query}%',)) as cursor:
-            rows = await cursor.fetchall()
-            return [MessageResult(chat_title=row[0], sender_name=row[1], text=row[2], date=row[3]) for row in rows]
 
     async def save_message(self, event: events.NewMessage.Event):
         """
