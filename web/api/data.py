@@ -45,6 +45,7 @@ async def get_dashboard_data():
         get_total_messages_last_7_days(),
         get_top_users_last_7_days(),
         get_top_chats_today(),
+        get_hourly_activity_last_30_days(),
         search_messages("") # 初始为空搜索
     )
 
@@ -53,7 +54,8 @@ async def get_dashboard_data():
         "total_messages_7_days": results[1],
         "top_users_7_days": results[2],
         "top_chats_today": results[3],
-        "search_results": results[4]
+        "hourly_activity_30_days": results[4],
+        "search_results": results[5]
     }
 
 async def get_top_chats_last_7_days():
@@ -68,6 +70,20 @@ async def get_top_chats_last_7_days():
         LIMIT 10;
     """
     return await query_db(query, (seven_days_ago,))
+
+async def get_hourly_activity_last_30_days():
+    """ 获取过去30天每小时的消息频率 (考虑北京时间) """
+    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+    query = """
+        SELECT
+            STRFTIME('%Y-%m-%d', date) as day,
+            STRFTIME('%H', date, '+8 hours') as hour,
+            COUNT(*) as message_count
+        FROM messages
+        WHERE date >= ?
+        GROUP BY day, hour;
+    """
+    return await query_db(query, (thirty_days_ago,))
 
 async def get_total_messages_last_7_days():
     """ 获取过去7天每天的总消息数 """

@@ -62,6 +62,7 @@ document.addEventListener("DOMContentLoaded", () => {
           updateTotalMessages7Days(data.total_messages_7_days);
           updateTopUsers7Days(data.top_users_7_days);
           updateTopChatsToday(data.top_chats_today);
+          updateHourlyActivityHeatmap(data.hourly_activity_30_days);
         } catch (error) {
           console.error("Failed to fetch dashboard data:", error);
         } finally {
@@ -93,6 +94,9 @@ document.addEventListener("DOMContentLoaded", () => {
         );
         chartInstances.topChatsToday = echarts.init(
           document.getElementById("top-chats-today")
+        );
+        chartInstances.hourlyActivityHeatmap = echarts.init(
+          document.getElementById("hourly-activity-heatmap")
         );
       };
 
@@ -204,6 +208,100 @@ document.addEventListener("DOMContentLoaded", () => {
               type: "bar",
               data: chartData.map((d) => d.value),
               itemStyle: { color: "#ef4444" },
+            },
+          ],
+        });
+      };
+
+      const updateHourlyActivityHeatmap = (data) => {
+        // 1. 生成过去30天的日期列表 (YYYY-MM-DD 格式)
+        const days = Array.from({ length: 30 }, (_, i) => {
+          const d = new Date();
+          d.setDate(d.getDate() - i);
+          return d.toISOString().split("T")[0];
+        }).reverse();
+
+        const hours = Array.from({ length: 24 }, (_, i) =>
+          String(i).padStart(2, "0")
+        );
+
+        // 2. 将后端数据转换为易于查找的 Map
+        const dataMap = new Map();
+        data.forEach((item) => {
+          if (!dataMap.has(item.day)) {
+            dataMap.set(item.day, new Map());
+          }
+          dataMap.get(item.day).set(item.hour, item.message_count);
+        });
+
+        // 3. 构建完整的图表数据，填充缺失值为 0
+        const chartData = [];
+        let maxCount = 0;
+        days.forEach((day, dayIndex) => {
+          hours.forEach((hour, hourIndex) => {
+            const count = dataMap.get(day)?.get(hour) || 0;
+            if (count > maxCount) {
+              maxCount = count;
+            }
+            chartData.push([dayIndex, hourIndex, count]);
+          });
+        });
+
+        chartInstances.hourlyActivityHeatmap.setOption({
+          title: {
+            text: "30天消息热力图 (北京时间)",
+            textStyle: { color: "#eee" },
+            left: "center",
+          },
+          tooltip: {
+            position: "top",
+            formatter: function (params) {
+              const day = days[params.data[0]];
+              const hour = hours[params.data[1]];
+              const count = params.data[2];
+              return `${day} ${hour}:00<br>消息数: ${count}`;
+            },
+          },
+          grid: { height: "70%", top: "10%", bottom: "20%" },
+          xAxis: {
+            type: "category",
+            data: days,
+            splitArea: { show: true },
+            axisLabel: {
+              formatter: function (value) {
+                return value.substring(5); // Show only month-day
+              },
+            },
+          },
+          yAxis: {
+            type: "category",
+            data: hours,
+            splitArea: { show: true },
+          },
+          visualMap: {
+            min: 0,
+            max: maxCount > 0 ? maxCount : 1, // 避免当所有数据为0时出错
+            calculable: true,
+            orient: "horizontal",
+            left: "center",
+            bottom: "0%",
+            inRange: {
+              color: ["#1f2937", "#3b82f6", "#8b5cf6"], // gray-800 to blue-500 to violet-500
+            },
+            textStyle: { color: "#ddd" },
+          },
+          series: [
+            {
+              name: "消息频率",
+              type: "heatmap",
+              data: chartData,
+              label: { show: false },
+              emphasis: {
+                itemStyle: {
+                  shadowBlur: 10,
+                  shadowColor: "rgba(255, 255, 255, 0.5)",
+                },
+              },
             },
           ],
         });
